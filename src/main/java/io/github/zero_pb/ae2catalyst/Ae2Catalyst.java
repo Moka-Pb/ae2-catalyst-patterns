@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -25,9 +26,11 @@ import io.github.zero_pb.ae2catalyst.recipe.ConvertPatternRecipe;
  *
  * Lets any ingredient of an AE2 processing pattern be marked as a "catalyst":
  * something the recipe needs at the machine but does not consume. AE2's
- * crafting planner then counts the catalyst once per pattern instead of once
- * per operation, and at execution time the catalyst is expected to already be
- * resident at the machine instead of being pushed (and lost) every run.
+ * crafting planner then counts the catalyst at most once per pattern instead
+ * of once per operation and never requires or crafts one. At execution time
+ * a catalyst that was allocated from ME storage is delivered to the machine
+ * with the first operation, and once no running job needs it anymore it is
+ * returned to the network (see {@link CatalystReturns}).
  */
 @Mod(Ae2Catalyst.MODID)
 public class Ae2Catalyst {
@@ -58,5 +61,8 @@ public class Ae2Catalyst {
                 SetCatalystFlagsPacket::decode, SetCatalystFlagsPacket::handle);
         CHANNEL.registerMessage(3, SyncCatalystFlagsPacket.class, SyncCatalystFlagsPacket::encode,
                 SyncCatalystFlagsPacket::decode, SyncCatalystFlagsPacket::handle);
+
+        MinecraftForge.EVENT_BUS.addListener(CatalystReturns::onServerTick);
+        MinecraftForge.EVENT_BUS.addListener(CatalystReturns::onServerStopped);
     }
 }
