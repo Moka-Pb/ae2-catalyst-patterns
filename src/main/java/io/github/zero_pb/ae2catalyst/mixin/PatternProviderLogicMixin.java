@@ -18,6 +18,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.parts.crafting.PatternProviderPart;
 
 import io.github.zero_pb.ae2catalyst.CatalystReturns;
 import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternDetails;
@@ -74,9 +75,15 @@ public abstract class PatternProviderLogicMixin {
         if (be == null || be.getLevel() == null) {
             return;
         }
+        // For a cable part provider, remember which side of the cable bus
+        // the part sits on so the return pass can find it again.
+        Direction partSide = null;
+        if (host instanceof PatternProviderPart part) {
+            partSide = part.getSide();
+        }
         for (var direction : getActiveSides()) {
-            CatalystReturns.record(be.getLevel(), be.getBlockPos(), be.getBlockPos().relative(direction),
-                    direction, pending);
+            CatalystReturns.record(be.getLevel(), be.getBlockPos(), partSide,
+                    be.getBlockPos().relative(direction), direction, pending);
         }
     }
 }
