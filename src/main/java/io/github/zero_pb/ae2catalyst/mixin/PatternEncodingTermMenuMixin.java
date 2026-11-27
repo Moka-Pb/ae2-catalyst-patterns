@@ -37,7 +37,7 @@ public abstract class PatternEncodingTermMenuMixin implements CatalystMenuData {
         return ae2catalyst$catalystFlags;
     }
 
-    @Redirect(method = "encodeProcessingPattern", at = @At(value = "INVOKE",
+    @Redirect(method = "encodeProcessingPattern", remap = false, at = @At(value = "INVOKE",
             target = "Lappeng/api/crafting/PatternDetailsHelper;encodeProcessingPattern([Lappeng/api/stacks/GenericStack;[Lappeng/api/stacks/GenericStack;)Lnet/minecraft/world/item/ItemStack;"))
     private ItemStack ae2catalyst$encodeProcessingPattern(GenericStack[] in, GenericStack[] out) {
         var stack = PatternDetailsHelper.encodeProcessingPattern(in, out);

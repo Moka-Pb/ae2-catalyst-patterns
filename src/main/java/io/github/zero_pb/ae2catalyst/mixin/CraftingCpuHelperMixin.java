@@ -30,7 +30,7 @@ import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternDetails;
 @Mixin(CraftingCpuHelper.class)
 public class CraftingCpuHelperMixin {
 
-    @Inject(method = "extractPatternInputs", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "extractPatternInputs", at = @At("HEAD"), cancellable = true, remap = false)
     private static void ae2catalyst$extractPatternInputs(IPatternDetails details, ICraftingInventory sourceInv,
             Level level, KeyCounter expectedOutputs, KeyCounter expectedContainerItems,
             CallbackInfoReturnable<KeyCounter[]> cir) {
