@@ -18,8 +18,8 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
+import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
-import appeng.api.inventories.InternalInventoryHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -216,12 +216,13 @@ public final class CatalystReturns {
         }
 
         long extracted = extract(handler, delivery.catalyst, toReturn);
-        if (extracted == 0 && targetBe instanceof InternalInventoryHost inventoryHost) {
+        var internalInventory = extracted == 0 ? internalInventoryOf(targetBe) : null;
+        if (internalInventory != null) {
             // Some machines (e.g. AE2's own inscriber) refuse automation
             // extraction from the slots that hold the catalyst. Take it
             // from the machine's internal inventory instead — the same
             // inventory the machine's GUI shows.
-            extracted = extract(inventoryHost.getInternalInventory(), delivery.catalyst, toReturn);
+            extracted = extract(internalInventory, delivery.catalyst, toReturn);
         }
         if (extracted == 0) {
             return false; // The inventory refuses extraction; retry later.
@@ -233,8 +234,11 @@ public final class CatalystReturns {
             // Never lose the difference: put it back, or drop it in the world.
             long leftover = extracted - inserted;
             leftover -= insertBack(handler, delivery.catalyst, leftover);
-            if (leftover > 0 && targetBe instanceof InternalInventoryHost inventoryHost) {
-                leftover -= insertBack(inventoryHost.getInternalInventory(), delivery.catalyst, leftover);
+            if (leftover > 0) {
+                var internal = internalInventoryOf(targetBe);
+                if (internal != null) {
+                    leftover -= insertBack(internal, delivery.catalyst, leftover);
+                }
             }
             if (leftover > 0 && delivery.catalyst instanceof AEItemKey itemKey) {
                 var stack = itemKey.toStack((int) leftover);
@@ -243,6 +247,17 @@ public final class CatalystReturns {
             }
         }
         return delivery.amount <= 0;
+    }
+
+    /**
+     * The machine's internal inventory (the one its GUI shows), for AE2
+     * machines that expose one. Null for anything else.
+     */
+    private static InternalInventory internalInventoryOf(net.minecraft.world.level.block.entity.BlockEntity be) {
+        if (be instanceof ISegmentedInventory segmented) {
+            return segmented.getSubInventory(ISegmentedInventory.STORAGE);
+        }
+        return null;
     }
 
     private static Provider resolveProvider(Level level, Delivery delivery) {
