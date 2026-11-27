@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -13,7 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,6 +22,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.crafting.pattern.AEProcessingPattern;
 import appeng.menu.SlotSemantics;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 
 import io.github.zero_pb.ae2catalyst.Ae2Catalyst;
@@ -37,15 +39,20 @@ import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternItem;
  * (the server menu owns the flags; the client only renders what it is
  * synced). Marked slots get an orange frame. When a catalyst pattern is
  * loaded into the terminal, its flags are restored onto the slots.
+ *
+ * This mixin extends AbstractContainerScreen so it can use the inherited
+ * hoveredSlot field and findSlot method directly. Direct member accesses
+ * are remapped by the jar reobfuscation step, unlike @Shadow declarations,
+ * which would need refmap entries the annotation processor cannot produce
+ * for members declared in a superclass of the target.
  */
 @Mixin(PatternEncodingTermScreen.class)
-public abstract class PatternEncodingTermScreenMixin {
+public abstract class PatternEncodingTermScreenMixin extends AbstractContainerScreen<PatternEncodingTermMenu> {
 
-    @Shadow
-    protected Slot hoveredSlot;
-
-    @Shadow
-    protected abstract Slot findSlot(double mouseX, double mouseY);
+    protected PatternEncodingTermScreenMixin(PatternEncodingTermMenu menu, Inventory playerInventory,
+            Component title) {
+        super(menu, playerInventory, title);
+    }
 
     @Unique
     private ItemStack ae2catalyst$lastSeenPattern;
@@ -53,14 +60,13 @@ public abstract class PatternEncodingTermScreenMixin {
     @Unique
     private boolean ae2catalyst$hadCatalyst;
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, remap = false)
     private void ae2catalyst$mouseClicked(double mouseX, double mouseY, int button,
             CallbackInfoReturnable<Boolean> cir) {
         if (button != 0 || !Screen.hasAltDown()) {
             return;
         }
-        var self = (PatternEncodingTermScreen<?>) (Object) this;
-        var menu = self.getMenu();
+        var menu = getMenu();
         if (menu.mode != EncodingMode.PROCESSING) {
             return;
         }
@@ -77,12 +83,11 @@ public abstract class PatternEncodingTermScreenMixin {
         cir.setReturnValue(true);
     }
 
-    @Inject(method = "renderSlot", at = @At("TAIL"))
+    @Inject(method = "renderSlot", at = @At("TAIL"), remap = false)
     private void ae2catalyst$renderSlot(GuiGraphics graphics, Slot slot, CallbackInfo ci) {
         ae2catalyst$restoreFlagsIfPatternChanged();
 
-        var self = (PatternEncodingTermScreen<?>) (Object) this;
-        var menu = self.getMenu();
+        var menu = getMenu();
         if (menu.mode != EncodingMode.PROCESSING
                 || menu.getSlotSemantic(slot) != SlotSemantics.PROCESSING_INPUTS) {
             return;
@@ -100,10 +105,9 @@ public abstract class PatternEncodingTermScreenMixin {
         graphics.fill(slot.x + 15, slot.y, slot.x + 16, slot.y + 16, 0xFFFFAA00);
     }
 
-    @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true, remap = false)
     private void ae2catalyst$tooltip(ItemStack stack, CallbackInfoReturnable<List<Component>> cir) {
-        var self = (PatternEncodingTermScreen<?>) (Object) this;
-        var menu = self.getMenu();
+        var menu = getMenu();
         if (menu.mode != EncodingMode.PROCESSING || this.hoveredSlot == null
                 || menu.getSlotSemantic(this.hoveredSlot) != SlotSemantics.PROCESSING_INPUTS) {
             return;
@@ -127,8 +131,7 @@ public abstract class PatternEncodingTermScreenMixin {
      */
     @Unique
     private void ae2catalyst$restoreFlagsIfPatternChanged() {
-        var self = (PatternEncodingTermScreen<?>) (Object) this;
-        var menu = self.getMenu();
+        var menu = getMenu();
         var patternSlots = menu.getSlots(SlotSemantics.ENCODED_PATTERN);
         if (patternSlots.isEmpty()) {
             return;
