@@ -1,1 +1,11 @@
-{"gui.ae2catalyst.done":"完了","gui.ae2catalyst.hint":"機械が消費しない材料に印を付けてね","gui.ae2catalyst.off":"触媒: オフ","gui.ae2catalyst.on":"触媒: オン","gui.ae2catalyst.title":"触媒パターン","item.ae2catalyst.catalyst_pattern":"触媒パターン","item.ae2catalyst.catalyst_pattern.catalysts":"触媒: %s"}
+{
+  "gui.ae2catalyst.done": "完了",
+  "gui.ae2catalyst.hint": "機械が消費しない材料に印を付けてね",
+  "gui.ae2catalyst.mark_hint": "Alt+クリックで触媒として登録",
+  "gui.ae2catalyst.marked": "触媒として登録済み（Alt+クリックで解除）",
+  "gui.ae2catalyst.off": "触媒: オフ",
+  "gui.ae2catalyst.on": "触媒: オン",
+  "gui.ae2catalyst.title": "触媒パターン",
+  "item.ae2catalyst.catalyst_pattern": "触媒パターン",
+  "item.ae2catalyst.catalyst_pattern.catalysts": "触媒: %s"
+}

@@ -13,7 +13,10 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
+import io.github.zero_pb.ae2catalyst.network.SetCatalystFlagsPacket;
 import io.github.zero_pb.ae2catalyst.network.SetCatalystsPacket;
+import io.github.zero_pb.ae2catalyst.network.SyncCatalystFlagsPacket;
+import io.github.zero_pb.ae2catalyst.network.ToggleCatalystSlotPacket;
 import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternItem;
 import io.github.zero_pb.ae2catalyst.recipe.ConvertPatternRecipe;
 
@@ -49,5 +52,11 @@ public class Ae2Catalyst {
 
         CHANNEL.registerMessage(0, SetCatalystsPacket.class, SetCatalystsPacket::encode,
                 SetCatalystsPacket::decode, SetCatalystsPacket::handle);
+        CHANNEL.registerMessage(1, ToggleCatalystSlotPacket.class, ToggleCatalystSlotPacket::encode,
+                ToggleCatalystSlotPacket::decode, ToggleCatalystSlotPacket::handle);
+        CHANNEL.registerMessage(2, SetCatalystFlagsPacket.class, SetCatalystFlagsPacket::encode,
+                SetCatalystFlagsPacket::decode, SetCatalystFlagsPacket::handle);
+        CHANNEL.registerMessage(3, SyncCatalystFlagsPacket.class, SyncCatalystFlagsPacket::encode,
+                SyncCatalystFlagsPacket::decode, SyncCatalystFlagsPacket::handle);
     }
 }
