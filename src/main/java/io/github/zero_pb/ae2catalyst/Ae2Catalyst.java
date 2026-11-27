@@ -3,7 +3,7 @@ package io.github.zero_pb.ae2catalyst;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.SimpleRecipeSerializer;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -37,7 +37,7 @@ public class Ae2Catalyst {
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister
             .create(ForgeRegistries.RECIPE_SERIALIZERS, MODID);
     public static final RegistryObject<RecipeSerializer<?>> CONVERT_PATTERN = RECIPE_SERIALIZERS
-            .register("convert_pattern", () -> new SimpleRecipeSerializer<>(ConvertPatternRecipe::new));
+            .register("convert_pattern", () -> new SimpleCraftingRecipeSerializer<>(ConvertPatternRecipe::new));
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MODID, "main"), () -> "1", "1"::equals, "1"::equals);

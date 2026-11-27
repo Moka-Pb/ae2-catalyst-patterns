@@ -12,7 +12,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.pattern.AEProcessingPattern;
-import appeng.crafting.pattern.AEPatternHelper;
 
 /**
  * Pattern details for a catalyst pattern. The encoded layout is exactly
@@ -39,7 +38,7 @@ public class CatalystPatternDetails implements IPatternDetails {
         this.definition = definition;
         this.wrapped = new AEProcessingPattern(definition);
 
-        var condensed = AEPatternHelper.condenseStacks(wrapped.getSparseInputs());
+        var condensed = condense(wrapped.getSparseInputs());
         var tag = definition.getTag();
         int[] stored = tag != null && tag.contains(CATALYSTS_TAG, Tag.TAG_INT_ARRAY)
                 ? tag.getIntArray(CATALYSTS_TAG)
@@ -55,7 +54,36 @@ public class CatalystPatternDetails implements IPatternDetails {
 
     /** Condensed inputs of an encoded pattern key, in pattern order. */
     public static GenericStack[] condensedInputs(AEItemKey key) {
-        return AEPatternHelper.condenseStacks(new AEProcessingPattern(key).getSparseInputs());
+        return condense(new AEProcessingPattern(key).getSparseInputs());
+    }
+
+    /**
+     * Merges a sparse stack array by key, summing amounts and preserving
+     * first-seen order. This mirrors AE2's own condensing (its helper class
+     * is package-private), so the result lines up with the input order of
+     * AEProcessingPattern itself.
+     */
+    static GenericStack[] condense(GenericStack[] sparse) {
+        var result = new java.util.ArrayList<GenericStack>();
+        for (var stack : sparse) {
+            if (stack == null) {
+                continue;
+            }
+            int found = -1;
+            for (int i = 0; i < result.size(); i++) {
+                if (result.get(i).what().equals(stack.what())) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found >= 0) {
+                var existing = result.get(found);
+                result.set(found, new GenericStack(existing.what(), existing.amount() + stack.amount()));
+            } else {
+                result.add(stack);
+            }
+        }
+        return result.toArray(new GenericStack[0]);
     }
 
     /** Current catalyst flags stored on an encoded pattern stack. */
