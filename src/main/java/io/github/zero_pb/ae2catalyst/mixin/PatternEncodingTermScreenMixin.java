@@ -41,10 +41,10 @@ import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternItem;
  * loaded into the terminal, its flags are restored onto the slots.
  *
  * This mixin extends AbstractContainerScreen so it can use the inherited
- * hoveredSlot field and findSlot method directly. Direct member accesses
- * are remapped by the jar reobfuscation step, unlike @Shadow declarations,
- * which would need refmap entries the annotation processor cannot produce
- * for members declared in a superclass of the target.
+ * hoveredSlot field directly. Direct member accesses are remapped by the
+ * jar reobfuscation step, unlike @Shadow declarations, which would need
+ * refmap entries the annotation processor cannot produce for members
+ * declared in a superclass of the target.
  */
 @Mixin(PatternEncodingTermScreen.class)
 public abstract class PatternEncodingTermScreenMixin extends AbstractContainerScreen<PatternEncodingTermMenu> {
@@ -70,7 +70,7 @@ public abstract class PatternEncodingTermScreenMixin extends AbstractContainerSc
         if (menu.mode != EncodingMode.PROCESSING) {
             return;
         }
-        var slot = findSlot(mouseX, mouseY);
+        var slot = this.hoveredSlot;
         if (slot == null || !slot.hasItem()
                 || menu.getSlotSemantic(slot) != SlotSemantics.PROCESSING_INPUTS) {
             return;
