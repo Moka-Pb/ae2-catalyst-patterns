@@ -63,7 +63,7 @@ public class CatalystPatternDetails implements IPatternDetails {
      * is package-private), so the result lines up with the input order of
      * AEProcessingPattern itself.
      */
-    static GenericStack[] condense(GenericStack[] sparse) {
+    public static GenericStack[] condense(GenericStack[] sparse) {
         var result = new java.util.ArrayList<GenericStack>();
         for (var stack : sparse) {
             if (stack == null) {

@@ -1,1 +1,11 @@
-{"gui.ae2catalyst.done":"Done","gui.ae2catalyst.hint":"Mark ingredients the machine does not consume.","gui.ae2catalyst.off":"Catalyst: OFF","gui.ae2catalyst.on":"Catalyst: ON","gui.ae2catalyst.title":"Catalyst Pattern","item.ae2catalyst.catalyst_pattern":"Catalyst Pattern","item.ae2catalyst.catalyst_pattern.catalysts":"Catalysts: %s"}
+{
+  "gui.ae2catalyst.done": "Done",
+  "gui.ae2catalyst.hint": "Mark ingredients the machine does not consume.",
+  "gui.ae2catalyst.mark_hint": "Alt + click: mark as catalyst",
+  "gui.ae2catalyst.marked": "Catalyst (Alt + click to unmark)",
+  "gui.ae2catalyst.off": "Catalyst: OFF",
+  "gui.ae2catalyst.on": "Catalyst: ON",
+  "gui.ae2catalyst.title": "Catalyst Pattern",
+  "item.ae2catalyst.catalyst_pattern": "Catalyst Pattern",
+  "item.ae2catalyst.catalyst_pattern.catalysts": "Catalysts: %s"
+}
