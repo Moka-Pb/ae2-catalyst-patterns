@@ -47,7 +47,7 @@ returned to ME storage, ready for the next job. If none was allocated,
 nothing is pushed for the catalyst and the resident one at the machine
 does the work.
 
-## Notes and limits (v0.4.1)
+## Notes and limits (v0.4.2)
 
 - A catalyst that only exists inside its machine is fully supported:
   jobs plan and run without one in storage. The flip side is that a job
