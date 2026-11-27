@@ -26,18 +26,40 @@ import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternDetails;
  * way, no container item is ever registered for the catalyst, so the CPU
  * never waits for it to come back. All other inputs are extracted exactly
  * like AE2 does it, and the expected outputs are registered the same way.
+ *
+ * AE2 changed this method's signature between 15.2 and 15.4 (container
+ * items got their own KeyCounter instead of sharing the expected-outputs
+ * counter), so there is one injection per known signature. Each injection
+ * names its exact descriptor and is require = 0, so on any given AE2
+ * version only the matching one applies and the other is skipped.
  */
 @Mixin(CraftingCpuHelper.class)
 public class CraftingCpuHelperMixin {
 
-    @Inject(method = "extractPatternInputs", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void ae2catalyst$extractPatternInputs(IPatternDetails details, ICraftingInventory sourceInv,
+    // AE2 15.2.x: extractPatternInputs(details, sourceInv, level, expectedOutputs)
+    @Inject(method = "extractPatternInputs(Lappeng/api/crafting/IPatternDetails;Lappeng/crafting/inv/ICraftingInventory;Lnet/minecraft/world/level/Level;Lappeng/api/stacks/KeyCounter;)[Lappeng/api/stacks/KeyCounter;", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void ae2catalyst$extractPatternInputs152(IPatternDetails details, ICraftingInventory sourceInv,
+            Level level, KeyCounter expectedOutputs, CallbackInfoReturnable<KeyCounter[]> cir) {
+        if (details instanceof CatalystPatternDetails) {
+            // On 15.2, container items are registered into expectedOutputs.
+            cir.setReturnValue(ae2catalyst$extract(details, sourceInv, level, expectedOutputs, expectedOutputs));
+        }
+    }
+
+    // AE2 15.4.x: extractPatternInputs(details, sourceInv, level, expectedOutputs, expectedContainerItems)
+    @Inject(method = "extractPatternInputs(Lappeng/api/crafting/IPatternDetails;Lappeng/crafting/inv/ICraftingInventory;Lnet/minecraft/world/level/Level;Lappeng/api/stacks/KeyCounter;Lappeng/api/stacks/KeyCounter;)[Lappeng/api/stacks/KeyCounter;", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void ae2catalyst$extractPatternInputs154(IPatternDetails details, ICraftingInventory sourceInv,
             Level level, KeyCounter expectedOutputs, KeyCounter expectedContainerItems,
             CallbackInfoReturnable<KeyCounter[]> cir) {
-        if (!(details instanceof CatalystPatternDetails catalystDetails)) {
-            return;
+        if (details instanceof CatalystPatternDetails) {
+            cir.setReturnValue(
+                    ae2catalyst$extract(details, sourceInv, level, expectedOutputs, expectedContainerItems));
         }
+    }
 
+    private static KeyCounter[] ae2catalyst$extract(IPatternDetails details, ICraftingInventory sourceInv,
+            Level level, KeyCounter expectedOutputs, KeyCounter containerItems) {
+        var catalystDetails = (CatalystPatternDetails) details;
         var inputs = details.getInputs();
         KeyCounter[] inputHolder = new KeyCounter[inputs.length];
         boolean found = true;
@@ -75,7 +97,7 @@ public class CraftingCpuHelperMixin {
 
                 var containerItem = inputs[x].getRemainingKey(template.key());
                 if (containerItem != null) {
-                    expectedContainerItems.add(containerItem, extracted);
+                    containerItems.add(containerItem, extracted);
                 }
 
                 remainingMultiplier -= extracted;
@@ -92,14 +114,13 @@ public class CraftingCpuHelperMixin {
 
         if (!found) {
             CraftingCpuHelper.reinjectPatternInputs(sourceInv, inputHolder);
-            cir.setReturnValue(null);
-            return;
+            return null;
         }
 
         for (var output : details.getOutputs()) {
             expectedOutputs.add(output.what(), output.amount());
         }
 
-        cir.setReturnValue(inputHolder);
+        return inputHolder;
     }
 }
