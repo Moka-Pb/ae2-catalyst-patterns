@@ -158,6 +158,11 @@ dependencies {
     // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
+    // Mixin annotation processor (the Mixin runtime itself ships with Forge).
+    // Without this, no refmap is generated and mixins that touch Minecraft
+    // classes (SRG-named in production) fail to apply outside dev.
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
     // Applied Energistics 2 (1.20.1) - the mod this addon extends.
     // File id taken from the user's own modpack manifest resolution.
     // Cross-check against Monifactory 0.13.8's AE2 build if issues arise.
