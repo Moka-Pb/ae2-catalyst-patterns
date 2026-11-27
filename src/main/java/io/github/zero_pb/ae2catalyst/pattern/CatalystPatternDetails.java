@@ -139,49 +139,14 @@ public class CatalystPatternDetails implements IPatternDetails {
 
     @Override
     public void pushInputsToExternalInventory(KeyCounter[] inputHolder, PatternInputSink inputSink) {
-        var sparseInputs = wrapped.getSparseInputs();
-        if (sparseInputs.length == inputs.length) {
-            // No compression -> the default push over the holders is fine;
-            // catalyst holders are empty, so nothing is pushed for them.
-            IPatternDetails.super.pushInputsToExternalInventory(inputHolder, inputSink);
-            return;
-        }
-
-        var allInputs = new KeyCounter();
-        for (var counter : inputHolder) {
-            allInputs.addAll(counter);
-        }
-
-        // Push according to sparse input order, like AE2 does, but skip
-        // catalysts: they are resident at the machine and never extracted,
-        // so AE2's own version of this loop would throw an exception
-        // expecting them among the extracted inputs.
-        for (var sparseInput : sparseInputs) {
-            if (sparseInput == null || isCatalystKey(sparseInput.what())) {
-                continue;
-            }
-
-            var key = sparseInput.what();
-            var amount = sparseInput.amount();
-            long available = allInputs.get(key);
-
-            if (available < amount) {
-                throw new RuntimeException("Expected at least %d of %s when pushing pattern, but only %d available"
-                        .formatted(amount, key, available));
-            }
-
-            inputSink.pushInput(key, amount);
-            allInputs.remove(key, amount);
-        }
-    }
-
-    private boolean isCatalystKey(AEKey key) {
-        for (int i = 0; i < inputs.length; i++) {
-            if (catalysts[i] && inputs[i].getPossibleInputs()[0].what().equals(key)) {
-                return true;
-            }
-        }
-        return false;
+        // Push exactly what was extracted into the holders, nothing more
+        // and nothing less. On the first dispatch the catalyst is among
+        // the extracted inputs and is delivered to the machine; on later
+        // dispatches its holder is empty (it is already resident at the
+        // machine), so nothing is pushed for it. AE2's sparse-order push
+        // cannot be used here: it expects every sparse input to be present
+        // among the extracted inputs and throws for a resident catalyst.
+        IPatternDetails.super.pushInputsToExternalInventory(inputHolder, inputSink);
     }
 
     @Override
