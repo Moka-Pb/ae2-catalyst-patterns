@@ -18,11 +18,17 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.inventories.InternalInventoryHost;
+import appeng.api.networking.IGridNode;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.helpers.MachineSource;
+import appeng.parts.crafting.PatternProviderPart;
 
 import io.github.zero_pb.ae2catalyst.mixin.CraftingCpuLogicAccessor;
 import io.github.zero_pb.ae2catalyst.mixin.ExecutingCraftingJobAccessor;
@@ -54,15 +60,17 @@ public final class CatalystReturns {
     private static final class Delivery {
         final ResourceKey<Level> dimension;
         final BlockPos providerPos;
+        final Direction providerSide; // null: block provider; else: cable part on this side
         final BlockPos targetPos;
         final Direction side; // from the provider towards the target
         final AEKey catalyst;
         long amount;
 
-        Delivery(ResourceKey<Level> dimension, BlockPos providerPos, BlockPos targetPos, Direction side,
-                AEKey catalyst, long amount) {
+        Delivery(ResourceKey<Level> dimension, BlockPos providerPos, Direction providerSide, BlockPos targetPos,
+                Direction side, AEKey catalyst, long amount) {
             this.dimension = dimension;
             this.providerPos = providerPos;
+            this.providerSide = providerSide;
             this.targetPos = targetPos;
             this.side = side;
             this.catalyst = catalyst;
@@ -70,24 +78,29 @@ public final class CatalystReturns {
         }
     }
 
+    /** A resolved pattern provider: its logic and its grid node. */
+    private record Provider(PatternProviderLogic logic, IGridNode node) {
+    }
+
     private static final List<Delivery> DELIVERIES = new ArrayList<>();
     private static int tickCounter;
 
-    public static void record(Level level, BlockPos providerPos, BlockPos targetPos, Direction side,
-            Map<AEKey, Long> catalysts) {
+    public static void record(Level level, BlockPos providerPos, Direction providerSide, BlockPos targetPos,
+            Direction side, Map<AEKey, Long> catalysts) {
         for (var entry : catalysts.entrySet()) {
             var merged = false;
             for (var delivery : DELIVERIES) {
                 if (delivery.dimension.equals(level.dimension()) && delivery.providerPos.equals(providerPos)
-                        && delivery.targetPos.equals(targetPos) && delivery.catalyst.equals(entry.getKey())) {
+                        && delivery.providerSide == providerSide && delivery.targetPos.equals(targetPos)
+                        && delivery.catalyst.equals(entry.getKey())) {
                     delivery.amount += entry.getValue();
                     merged = true;
                     break;
                 }
             }
             if (!merged) {
-                DELIVERIES.add(new Delivery(level.dimension(), providerPos, targetPos, side, entry.getKey(),
-                        entry.getValue()));
+                DELIVERIES.add(new Delivery(level.dimension(), providerPos, providerSide, targetPos, side,
+                        entry.getKey(), entry.getValue()));
             }
         }
     }
@@ -120,11 +133,11 @@ public final class CatalystReturns {
             return false;
         }
 
-        if (!(level.getBlockEntity(delivery.providerPos) instanceof PatternProviderBlockEntity provider)) {
-            return true; // Only block pattern providers are tracked.
+        var provider = resolveProvider(level, delivery);
+        if (provider == null) {
+            return true; // The provider is gone (or no longer a pattern provider).
         }
-        var gridNode = provider.getGridNode();
-        var grid = gridNode != null ? gridNode.getGrid() : null;
+        var grid = provider.node() != null ? provider.node().getGrid() : null;
         if (grid == null) {
             return false; // Network is offline; try again later.
         }
@@ -162,7 +175,7 @@ public final class CatalystReturns {
 
         // 2) Other inputs of the patterns using this catalyst must be gone.
         Set<AEKey> materialKeys = new HashSet<>();
-        for (var pattern : provider.getLogic().getAvailablePatterns()) {
+        for (var pattern : provider.logic().getAvailablePatterns()) {
             if (pattern instanceof CatalystPatternDetails catalystDetails
                     && catalystDetails.hasCatalystKey(delivery.catalyst)) {
                 for (int i = 0; i < catalystDetails.getInputs().length; i++) {
@@ -194,7 +207,7 @@ public final class CatalystReturns {
 
         // 3) Take the catalyst back into the network.
         var storage = grid.getStorageService().getInventory();
-        var source = new MachineSource(provider::getGridNode);
+        var source = new MachineSource(() -> provider.node());
         long toReturn = Math.min(delivery.amount, present);
         toReturn = Math.min(toReturn,
                 storage.insert(delivery.catalyst, toReturn, Actionable.SIMULATE, source));
@@ -203,8 +216,15 @@ public final class CatalystReturns {
         }
 
         long extracted = extract(handler, delivery.catalyst, toReturn);
+        if (extracted == 0 && targetBe instanceof InternalInventoryHost inventoryHost) {
+            // Some machines (e.g. AE2's own inscriber) refuse automation
+            // extraction from the slots that hold the catalyst. Take it
+            // from the machine's internal inventory instead — the same
+            // inventory the machine's GUI shows.
+            extracted = extract(inventoryHost.getInternalInventory(), delivery.catalyst, toReturn);
+        }
         if (extracted == 0) {
-            return false; // The inventory refuses extraction (locked slots); retry later.
+            return false; // The inventory refuses extraction; retry later.
         }
         long inserted = storage.insert(delivery.catalyst, extracted, Actionable.MODULATE, source);
         delivery.amount -= inserted;
@@ -213,6 +233,9 @@ public final class CatalystReturns {
             // Never lose the difference: put it back, or drop it in the world.
             long leftover = extracted - inserted;
             leftover -= insertBack(handler, delivery.catalyst, leftover);
+            if (leftover > 0 && targetBe instanceof InternalInventoryHost inventoryHost) {
+                leftover -= insertBack(inventoryHost.getInternalInventory(), delivery.catalyst, leftover);
+            }
             if (leftover > 0 && delivery.catalyst instanceof AEItemKey itemKey) {
                 var stack = itemKey.toStack((int) leftover);
                 level.addFreshEntity(new ItemEntity(level, delivery.targetPos.getX() + 0.5,
@@ -220,6 +243,21 @@ public final class CatalystReturns {
             }
         }
         return delivery.amount <= 0;
+    }
+
+    private static Provider resolveProvider(Level level, Delivery delivery) {
+        var providerBe = level.getBlockEntity(delivery.providerPos);
+        if (delivery.providerSide == null) {
+            if (providerBe instanceof PatternProviderBlockEntity blockProvider) {
+                return new Provider(blockProvider.getLogic(), blockProvider.getGridNode());
+            }
+            return null;
+        }
+        if (providerBe instanceof CableBusBlockEntity cableBus
+                && cableBus.getPart(delivery.providerSide) instanceof PatternProviderPart part) {
+            return new Provider(part.getLogic(), part.getGridNode());
+        }
+        return null;
     }
 
     private static long extract(IItemHandler handler, AEKey catalyst, long amount) {
@@ -235,6 +273,19 @@ public final class CatalystReturns {
         return extracted;
     }
 
+    private static long extract(InternalInventory inventory, AEKey catalyst, long amount) {
+        long extracted = 0;
+        for (int slot = 0; slot < inventory.size() && extracted < amount; slot++) {
+            var stack = inventory.getStackInSlot(slot);
+            if (stack.isEmpty() || !catalyst.equals(AEItemKey.of(stack))) {
+                continue;
+            }
+            int want = (int) Math.min(amount - extracted, stack.getCount());
+            extracted += inventory.extractItem(slot, want, false).getCount();
+        }
+        return extracted;
+    }
+
     private static long insertBack(IItemHandler handler, AEKey catalyst, long amount) {
         if (!(catalyst instanceof AEItemKey itemKey)) {
             return 0;
@@ -243,6 +294,18 @@ public final class CatalystReturns {
         for (int slot = 0; slot < handler.getSlots() && remaining > 0; slot++) {
             var stack = itemKey.toStack((int) Math.min(remaining, itemKey.getItem().getMaxStackSize()));
             remaining -= stack.getCount() - handler.insertItem(slot, stack, false).getCount();
+        }
+        return amount - remaining;
+    }
+
+    private static long insertBack(InternalInventory inventory, AEKey catalyst, long amount) {
+        if (!(catalyst instanceof AEItemKey itemKey)) {
+            return 0;
+        }
+        long remaining = amount;
+        for (int slot = 0; slot < inventory.size() && remaining > 0; slot++) {
+            var stack = itemKey.toStack((int) Math.min(remaining, itemKey.getItem().getMaxStackSize()));
+            remaining -= stack.getCount() - inventory.insertItem(slot, stack, false).getCount();
         }
         return amount - remaining;
     }

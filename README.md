@@ -47,21 +47,23 @@ returned to ME storage, ready for the next job. If none was allocated,
 nothing is pushed for the catalyst and the resident one at the machine
 does the work.
 
-## Notes and limits (v0.4.0)
+## Notes and limits (v0.4.1)
 
 - A catalyst that only exists inside its machine is fully supported:
   jobs plan and run without one in storage. The flip side is that a job
   also starts when the catalyst is nowhere at all — the other inputs
   are pushed and the machine simply cannot start until a catalyst is
   put in.
-- Automatic returns are tracked for block pattern providers. Cable
-  part providers deliver catalysts as usual, but their catalysts are
-  not returned automatically.
+- Automatic returns work with both block pattern providers and cable
+  part providers.
 - Deliveries are remembered in memory only. If the game stops while a
   catalyst is out, it stays at the machine (take it out by hand once).
 - The catalyst is taken back through the machine's item inventory, the
-  same way it was pushed in. A machine that refuses extraction from
-  that inventory keeps its catalyst.
+  same way it was pushed in. Some machines refuse automation extraction
+  from the slot that holds the catalyst — AE2's own inscriber does
+  this for its presses unless it is set to separated sides. For those,
+  the catalyst is taken from the machine's internal inventory instead,
+  the same inventory its GUI shows.
 - Use one pattern provider per catalyst pattern. If the same catalyst
   pattern is served by several providers (parallel machines), only the
   first machine to receive a push gets the catalyst from storage.
