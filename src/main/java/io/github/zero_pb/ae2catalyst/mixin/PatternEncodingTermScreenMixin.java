@@ -60,7 +60,7 @@ public abstract class PatternEncodingTermScreenMixin extends AbstractContainerSc
     @Unique
     private boolean ae2catalyst$hadCatalyst;
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void ae2catalyst$mouseClicked(double mouseX, double mouseY, int button,
             CallbackInfoReturnable<Boolean> cir) {
         if (button != 0 || !Screen.hasAltDown()) {
@@ -83,7 +83,7 @@ public abstract class PatternEncodingTermScreenMixin extends AbstractContainerSc
         cir.setReturnValue(true);
     }
 
-    @Inject(method = "renderSlot", at = @At("TAIL"), remap = false)
+    @Inject(method = "renderSlot", at = @At("TAIL"))
     private void ae2catalyst$renderSlot(GuiGraphics graphics, Slot slot, CallbackInfo ci) {
         ae2catalyst$restoreFlagsIfPatternChanged();
 
@@ -105,7 +105,7 @@ public abstract class PatternEncodingTermScreenMixin extends AbstractContainerSc
         graphics.fill(slot.x + 15, slot.y, slot.x + 16, slot.y + 16, 0xFFFFAA00);
     }
 
-    @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true, remap = false)
+    @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true)
     private void ae2catalyst$tooltip(ItemStack stack, CallbackInfoReturnable<List<Component>> cir) {
         var menu = getMenu();
         if (menu.mode != EncodingMode.PROCESSING || this.hoveredSlot == null
