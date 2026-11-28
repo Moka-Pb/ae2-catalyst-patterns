@@ -47,7 +47,7 @@ returned to ME storage, ready for the next job. If none was allocated,
 nothing is pushed for the catalyst and the resident one at the machine
 does the work.
 
-## Notes and limits (v0.4.2)
+## Notes and limits (v0.5.0)
 
 - A catalyst that only exists inside its machine is fully supported:
   jobs plan and run without one in storage. The flip side is that a job
@@ -64,6 +64,12 @@ does the work.
   this for its presses unless it is set to separated sides. For those,
   the catalyst is taken from the machine's internal inventory instead,
   the same inventory its GUI shows.
+- Mekanism machines are supported the same way (optional — Mekanism
+  does not need to be installed). Their side configuration decides
+  what automation may extract, so if the capability refuses, the
+  catalyst is taken from the machine's internal slot list instead and
+  no side setting is needed. This covers machines such as Astral
+  Mekanism & Energistics' Mekanical Inscriber.
 - Use one pattern provider per catalyst pattern. If the same catalyst
   pattern is served by several providers (parallel machines), only the
   first machine to receive a push gets the catalyst from storage.
