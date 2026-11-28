@@ -15,6 +15,7 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
@@ -30,6 +31,7 @@ import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.crafting.PatternProviderPart;
 
+import io.github.zero_pb.ae2catalyst.compat.MekanismCompat;
 import io.github.zero_pb.ae2catalyst.mixin.CraftingCpuLogicAccessor;
 import io.github.zero_pb.ae2catalyst.mixin.ExecutingCraftingJobAccessor;
 import io.github.zero_pb.ae2catalyst.pattern.CatalystPatternDetails;
@@ -187,19 +189,29 @@ public final class CatalystReturns {
                 }
             }
         }
-        long present = 0;
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            var stack = handler.getStackInSlot(slot);
-            if (stack.isEmpty()) {
-                continue;
+        // The capability view may not show the catalyst at all (some
+        // machines only expose part of their inventory per side), so fall
+        // back to the machine's internal views for the scan as well.
+        long[] scan = scan(handler, delivery.catalyst, materialKeys);
+        long present = scan[0];
+        boolean materialsPresent = scan[1] == 1;
+        if (present == 0 && !materialsPresent) {
+            var internal = internalInventoryOf(targetBe);
+            if (internal != null) {
+                scan = scan(internal, delivery.catalyst, materialKeys);
+                present = scan[0];
+                materialsPresent = scan[1] == 1;
             }
-            var key = AEItemKey.of(stack);
-            if (materialKeys.contains(key)) {
-                return false;
+        }
+        if (present == 0 && !materialsPresent && mekanismLoaded()) {
+            var mekScan = MekanismCompat.scan(targetBe, delivery.catalyst, materialKeys);
+            if (mekScan != null) {
+                present = mekScan[0];
+                materialsPresent = mekScan[1] == 1;
             }
-            if (delivery.catalyst.equals(key)) {
-                present += stack.getCount();
-            }
+        }
+        if (materialsPresent) {
+            return false;
         }
         if (present == 0) {
             return true; // Already taken out by hand; nothing to return.
@@ -224,6 +236,11 @@ public final class CatalystReturns {
             // inventory the machine's GUI shows.
             extracted = extract(internalInventory, delivery.catalyst, toReturn);
         }
+        if (extracted == 0 && mekanismLoaded()) {
+            // Mekanism machines gate capability extraction behind their
+            // side configuration; their internal slot list does not.
+            extracted = MekanismCompat.extract(targetBe, delivery.catalyst, toReturn);
+        }
         if (extracted == 0) {
             return false; // The inventory refuses extraction; retry later.
         }
@@ -240,6 +257,9 @@ public final class CatalystReturns {
                     leftover -= insertBack(internal, delivery.catalyst, leftover);
                 }
             }
+            if (leftover > 0 && mekanismLoaded()) {
+                leftover -= MekanismCompat.insertBack(targetBe, delivery.catalyst, leftover);
+            }
             if (leftover > 0 && delivery.catalyst instanceof AEItemKey itemKey) {
                 var stack = itemKey.toStack((int) leftover);
                 level.addFreshEntity(new ItemEntity(level, delivery.targetPos.getX() + 0.5,
@@ -247,6 +267,50 @@ public final class CatalystReturns {
             }
         }
         return delivery.amount <= 0;
+    }
+
+    private static boolean mekanismLoaded() {
+        return ModList.get().isLoaded("mekanism");
+    }
+
+    /** @return {catalyst count, 1 if any of the material keys is present} */
+    private static long[] scan(IItemHandler handler, AEKey catalyst, Set<AEKey> materials) {
+        long present = 0;
+        long blocked = 0;
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            var stack = handler.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            var key = AEItemKey.of(stack);
+            if (materials.contains(key)) {
+                blocked = 1;
+            }
+            if (catalyst.equals(key)) {
+                present += stack.getCount();
+            }
+        }
+        return new long[] { present, blocked };
+    }
+
+    /** @return {catalyst count, 1 if any of the material keys is present} */
+    private static long[] scan(InternalInventory inventory, AEKey catalyst, Set<AEKey> materials) {
+        long present = 0;
+        long blocked = 0;
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            var stack = inventory.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            var key = AEItemKey.of(stack);
+            if (materials.contains(key)) {
+                blocked = 1;
+            }
+            if (catalyst.equals(key)) {
+                present += stack.getCount();
+            }
+        }
+        return new long[] { present, blocked };
     }
 
     /**

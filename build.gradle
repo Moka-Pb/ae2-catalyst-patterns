@@ -140,6 +140,14 @@ repositories {
             includeGroup 'curse.maven'
         }
     }
+    // Modmaven: Mekanism's official Maven (compile-only compat dependency).
+    maven {
+        name = 'Modmaven'
+        url = 'https://modmaven.dev/'
+        content {
+            includeGroup 'mekanism'
+        }
+    }
     // Put repositories for dependencies here
     // ForgeGradle automatically adds the Forge maven and Maven Central for you
 
@@ -167,6 +175,11 @@ dependencies {
     // File id taken from the user's own modpack manifest resolution.
     // Cross-check against Monifactory 0.13.8's AE2 build if issues arise.
     implementation fg.deobf('curse.maven:applied-energistics-2-223794:8991271')
+
+    // Mekanism (1.20.1) - compile-only, for the optional machine compat in
+    // io.github.zero_pb.ae2catalyst.compat.MekanismCompat. Never required
+    // at runtime; that class is only touched when Mekanism is loaded.
+    compileOnly fg.deobf('mekanism:Mekanism:1.20.1-10.4.16.80')
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
